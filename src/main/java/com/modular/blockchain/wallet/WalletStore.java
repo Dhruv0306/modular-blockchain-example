@@ -5,16 +5,18 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * WalletStore manages storage and retrieval of user wallets
- * Uses an in-memory HashMap to store wallet objects indexed by user ID
+ * WalletStore provides persistent storage and management of user cryptocurrency wallets.
+ * Implements an in-memory HashMap data structure to store wallet objects, using unique user IDs as keys.
+ * Provides methods for adding, retrieving, removing and listing wallets.
  */
 public class WalletStore {
-    /** Map storing user wallets with user ID as key */
+    /** In-memory map that stores wallet objects indexed by their associated user ID */
     private final Map<String, Wallet> store = new HashMap<>();
 
     /**
-     * Adds a wallet to the store
-     * @param w The wallet to add
+     * Adds a new wallet to the store.
+     * If a wallet already exists for the user ID, it will be overwritten.
+     * @param w The wallet object to store
      */
     public void addWallet(Wallet w) {
         store.put(w.getUserId(), w);
@@ -22,9 +24,9 @@ public class WalletStore {
     }
 
     /**
-     * Retrieves a wallet by user ID
-     * @param userId The ID of the user whose wallet to retrieve
-     * @return The wallet object if found, null otherwise
+     * Retrieves a wallet from the store by user ID.
+     * @param userId The unique identifier of the user whose wallet to retrieve
+     * @return The wallet object if found in the store, null if no wallet exists for the user ID
      */
     public Wallet getWallet(String userId) {
         Wallet wallet = store.get(userId);
@@ -37,11 +39,20 @@ public class WalletStore {
     }
 
     /**
-     * Removes a wallet from the store
-     * @param userId The ID of the user whose wallet to remove
+     * Removes a wallet from the store.
+     * If no wallet exists for the user ID, this operation has no effect.
+     * @param userId The unique identifier of the user whose wallet to remove
      */
     public void removeWallet(String userId) {
         store.remove(userId);
         Logger.info("Wallet removed from store for user: " + userId);
+    }
+
+    /**
+     * Returns an Iterable containing all user IDs that have wallets in the store.
+     * @return Iterable of user ID strings
+     */
+    public Iterable<String> getAllUserIds() {
+        return store.keySet();
     }
 }

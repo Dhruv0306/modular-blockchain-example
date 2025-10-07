@@ -4,57 +4,66 @@ import com.modular.blockchain.api.RestApiServer;
 import com.modular.blockchain.blockchain.Blockchain;
 import com.modular.blockchain.blockchain.Miner;
 import com.modular.blockchain.consensus.ConsensusEngine;
+import com.modular.blockchain.consensus.SimpleConsensusEngine;
 import com.modular.blockchain.transaction.TransactionPool;
-import com.modular.blockchain.wallet.Wallet;
+import com.modular.blockchain.wallet.WalletStore;
 import com.modular.blockchain.util.Logger;
 
 import java.io.IOException;
 import java.util.ArrayList;
 
+/**
+ * Main entry point for the Modular Blockchain application.
+ * Initializes and starts all core blockchain components including miners, consensus engine,
+ * transaction pool, and REST API server.
+ */
 public class Main {
     public static void main(String[] args) throws IOException {
         Logger.info("Modular Blockchain starting up");
-        // -- Configuration and initialization code would go here --
-        int difficulty = 4; // Example difficulty level
-        int port = 8080; // Example port number
-        int miningThreshold = 5; // Example mining threshold : number of transactions
-        int miningInterval = 2; // Example mining interval in minutes
-        String[] minerIds = {"miner-01", "miner-02", "miner-03"}; // Example miner IDs
+
+        // Configuration parameters
+        int difficulty = 4;           // Mining difficulty level - higher means more computation required
+        int port = 8080;             // Port number for REST API server
+        int miningThreshold = 5;      // Number of transactions required before mining starts
+        int miningInterval = 2;       // Time between mining attempts in minutes
+        String[] minerIds = {"miner-01", "miner-02", "miner-03"}; // Unique identifiers for miners
         ArrayList<Miner> miners = new ArrayList<>();
 
-        // --- REQUIRED USER IMPLEMENTATIONS ---
-        // NOTE: Users must implement these themselves
-        // 1. ConsensusEngine implementation
-        ConsensusEngine consensusEngine = null; // TODO: Replace with actual implementation
-        // 2. Wallet implementation
-        Wallet wallet = null; // TODO: Replace with actual implementation
+        // Initialize core system components
+        // ConsensusEngine handles agreement between nodes on blockchain state
+        ConsensusEngine consensusEngine = new SimpleConsensusEngine();
 
-        // --- CORE COMPONENTS ---
-        Blockchain blockchain = new Blockchain(difficulty); // Blockchain with specified difficulty
+        // WalletStore manages cryptographic wallets for transaction signing
+        WalletStore walletStore = new WalletStore();
+
+        // Initialize blockchain with specified mining difficulty
+        Blockchain blockchain = new Blockchain(difficulty);
         Logger.info("Blockchain initialized with difficulty: " + difficulty);
-        TransactionPool pool = new TransactionPool(); // Transaction pool
+
+        // Transaction pool holds pending transactions waiting to be mined
+        TransactionPool pool = new TransactionPool();
         Logger.info("Transaction pool created");
 
-        // Create Miners
+        // Initialize miners that will compete to create new blocks
         for(String minerId : minerIds){
-            Miner miner = new Miner(minerId, miningThreshold, pool, blockchain, consensusEngine); // Create a miner
+            Miner miner = new Miner(minerId, miningThreshold, pool, blockchain, consensusEngine);
             miners.add(miner);
             Logger.info("Miner created: " + minerId);
         }
 
-        // RestAPI server starter
-        RestApiServer server = new RestApiServer(blockchain, pool, port);
+        // Initialize and start REST API server for external interaction
+        RestApiServer server = new RestApiServer(blockchain, pool, port, walletStore);
         Logger.info("REST API server initialized on port: " + port);
         server.start();
         Logger.info("REST API server started");
 
-        // Start miners
+        // Start mining operations on all miners
         miners.forEach(miner -> {
             Logger.info("Starting mining for miner: " + miner.getMinerId());
             miner.startMining(miningInterval);
         });
 
-        // Add shutdown hook for graceful exit
+        // Register shutdown hook for graceful system termination
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             server.stop();
             miners.forEach(Miner::stopMining);

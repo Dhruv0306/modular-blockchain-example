@@ -6,17 +6,19 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Manages a pool of pending transactions that have not yet been added to the blockchain.
- * Provides thread-safe methods to add, retrieve and remove transactions from the pool.
+ * Manages a thread-safe pool of pending transactions waiting to be added to the blockchain.
+ * Provides synchronized methods for adding, retrieving and removing transactions.
+ * The pool acts as a temporary storage for transactions before they are mined into blocks.
  */
 public class TransactionPool {
     private final List<Transaction> pendingTransactions = new ArrayList<>();
 
     /**
-     * Adds a new transaction to the pending pool if it is valid.
-     * This method is synchronized to ensure thread-safety.
+     * Adds a new transaction to the pending pool after validating it.
+     * Invalid transactions are rejected and logged as errors.
+     * This method is synchronized to prevent concurrent modifications.
      *
-     * @param tx The transaction to add to the pool
+     * @param tx The transaction to validate and add to the pool
      */
     public synchronized void addTransaction(Transaction tx) {
         if (tx.isValid()) {
@@ -28,11 +30,12 @@ public class TransactionPool {
     }
 
     /**
-     * Retrieves a batch of pending transactions up to the specified size.
-     * This method is synchronized to ensure thread-safety.
+     * Retrieves and removes a batch of pending transactions up to the specified size.
+     * The transactions are removed from the pool to prevent double-processing.
+     * This method is synchronized to prevent concurrent access.
      *
      * @param size The maximum number of transactions to retrieve
-     * @return A list containing up to 'size' transactions, or an empty list if no transactions are pending
+     * @return A list of up to 'size' transactions, or an empty list if pool is empty
      */
     public synchronized List<Transaction> getBatch(int size) {
         if (pendingTransactions.isEmpty()) {
@@ -41,14 +44,43 @@ public class TransactionPool {
         }
         int batchSize = Math.min(size, pendingTransactions.size());
         Logger.debug("Retrieving batch of " + batchSize + " transactions from pool");
-        return new ArrayList<>(pendingTransactions.subList(0, batchSize));
+        ArrayList<Transaction> batch = new ArrayList<>(pendingTransactions.subList(0, batchSize));
+        removeBatch(batch);
+        return batch;
     }
 
     /**
-     * Removes the specified transactions from the pending pool.
-     * This method is synchronized to ensure thread-safety.
+     * Removes a batch of transactions from the pending pool.
+     * Used internally after retrieving a batch to prevent double-processing.
+     * This method is synchronized to maintain thread-safety.
      *
-     * @param txs The list of transactions to remove
+     * @param batch The list of transactions to remove from the pool
+     */
+    public synchronized void removeBatch(ArrayList<Transaction> batch) {
+        pendingTransactions.removeAll(batch);
+        String message = "Remaining Transection Count " + pendingTransactions.size();
+        Logger.debug(message);
+    }
+
+    /**
+     * Adds back a batch of transactions to the pending pool.
+     * Used when transactions need to be requeued, e.g. after a failed mining attempt.
+     * This method is synchronized to maintain thread-safety.
+     *
+     * @param batch The list of transactions to add back to the pool
+     */
+    public synchronized void addBack(ArrayList<Transaction> batch) {
+        pendingTransactions.addAll(batch);
+        String message = "Remaining Transection Count " + pendingTransactions.size();
+        Logger.debug(message);
+    }
+
+    /**
+     * Removes specific transactions from the pending pool.
+     * Used when transactions have been successfully processed and added to the blockchain.
+     * This method is synchronized to prevent concurrent modifications.
+     *
+     * @param txs The list of transactions to permanently remove from the pool
      */
     public synchronized void removeTransactions(List<Transaction> txs) {
         pendingTransactions.removeAll(txs);

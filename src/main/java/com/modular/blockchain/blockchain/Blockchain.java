@@ -1,5 +1,6 @@
 /**
- * Represents a blockchain implementation with mining difficulty and block management.
+ * Represents a blockchain implementation with configurable mining difficulty and block management.
+ * This class maintains an ordered list of blocks and ensures chain integrity through hash validation.
  */
 package com.modular.blockchain.blockchain;
 
@@ -15,15 +16,15 @@ public class Blockchain {
 
     /**
      * Creates a new blockchain with specified mining difficulty.
-     * Initializes the chain with a genesis block.
+     * Initializes the chain with a genesis block and configures mining parameters.
      *
-     * @param difficulty The mining difficulty level
+     * @param difficulty The mining difficulty level - higher values require more computational work
      */
     public Blockchain(int difficulty){
         Logger.info("Initializing blockchain with difficulty: " + difficulty);
-        this.blocks = new ArrayList<Block>();
+        this.blocks = new ArrayList<>();
         this.difficulty = difficulty;
-        // Create genesis block
+        // Initialize chain with genesis block
         Block genesisBlock = genesisBlock();
         genesisBlock.mineBlock(difficulty);
         blocks.add(genesisBlock);
@@ -33,22 +34,20 @@ public class Blockchain {
     /**
      * Gets the most recently added block in the chain.
      *
-     * @return The latest Block object
+     * @return The latest Block object in the blockchain
      */
     Block getLatestBlock() {
         return blocks.getLast();
     }
 
     /**
-     * Adds a new block to the chain after mining it.
-     * Only adds the block if its hash is valid for the current difficulty.
+     * Adds a new block to the chain after validating its hash.
+     * Only adds blocks that meet the current difficulty requirement.
      *
-     * @param block The Block to be added
+     * @param block The Block to be added to the blockchain
      */
     void addBlock(Block block) {
         Logger.info("Attempting to add new block to blockchain");
-        block.mineBlock(difficulty);
-
         if (BlockUtils.isHashValid(block.getHash(), difficulty)) {
             blocks.add(block);
             Logger.info("Block added to blockchain: " + block.getHash());
@@ -58,12 +57,13 @@ public class Blockchain {
     }
 
     /**
-     * Validates the entire blockchain.
-     * Checks hash integrity and block linking.
+     * Validates the entire blockchain by checking:
+     * 1. Hash integrity of each block
+     * 2. Proper linking between consecutive blocks
      *
-     * @return true if chain is valid, false otherwise
+     * @return true if the entire chain is valid, false if any validation fails
      */
-    private boolean isChainValid() {
+    public boolean isChainValid() {
         Logger.info("Validating blockchain integrity");
         for (int i = 1; i < blocks.size(); i++) {
             Block currentBlock = blocks.get(i);
@@ -85,15 +85,17 @@ public class Blockchain {
 
     /**
      * Creates and returns the genesis block for the blockchain.
-     * The genesis block is the first block in the chain with no previous hash.
+     * The genesis block is the first block in the chain with special properties:
+     * - Has no previous hash (uses "0")
+     * - Contains no transactions
+     * - Marks the start of the blockchain
      *
-     * @return The genesis Block object
+     * @return The genesis Block object with initial configuration
      */
     public Block genesisBlock() {
         Logger.info("Creating genesis block");
-        // Example values, adjust as needed for your Block constructor
+        // Initialize genesis block with default values
         String genesisPreviousHash = "0";
-        String genesisData = "Genesis Block";
         long timestamp = System.currentTimeMillis();
         int nonce = 0;
         List<Transaction> emptyTransactions = List.of();
@@ -103,7 +105,8 @@ public class Blockchain {
     }
 
     /**
-     * Returns a copy of the blockchain.
+     * Returns a defensive copy of the blockchain.
+     * Creates a new list to prevent external modification of the chain.
      *
      * @return A new ArrayList containing all blocks in the chain
      */
@@ -112,6 +115,9 @@ public class Blockchain {
     }
 
     /**
+     * Returns the mining difficulty level of the blockchain.
+     * Higher difficulty requires more computational work to mine blocks.
+     *
      * @return The current mining difficulty level
      */
     public int getDifficulty() { return difficulty; }

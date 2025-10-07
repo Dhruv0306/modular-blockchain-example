@@ -6,14 +6,15 @@ import java.util.Base64;
 
 /**
  * Utility class providing cryptographic functions for blockchain operations.
- * Includes methods for hashing, key pair generation, signing and verification.
+ * Includes methods for secure hashing, asymmetric key pair generation, digital signatures and key encoding.
+ * Uses SHA-256 for hashing and RSA for public key cryptography operations.
  */
 public class CryptoUtils {
     /**
-     * Generates SHA-256 hash of input string.
-     * @param input String to be hashed
-     * @return Hexadecimal string representation of hash
-     * @throws RuntimeException if hashing fails
+     * Generates SHA-256 cryptographic hash of input string.
+     * @param input String data to be hashed
+     * @return 64-character hexadecimal string representation of the SHA-256 hash
+     * @throws RuntimeException if the hashing operation fails
      */
     public static String sha256(String input) {
         try {
@@ -34,9 +35,10 @@ public class CryptoUtils {
     }
 
     /**
-     * Generates a new RSA key pair.
-     * @return KeyPair containing public and private RSA keys
-     * @throws RuntimeException if key generation fails
+     * Generates a new RSA public/private key pair for asymmetric cryptography.
+     * Uses 2048-bit key size for strong security.
+     * @return KeyPair containing matching RSA public and private keys
+     * @throws RuntimeException if key pair generation fails
      */
     public static KeyPair generateKeyPair() {
         try {
@@ -51,40 +53,60 @@ public class CryptoUtils {
     }
 
     /**
-     * Signs data using RSA private key.
-     * @param data Data to be signed
-     * @param key Private key for signing
-     * @return Signature bytes
-     * @throws RuntimeException if signing fails
+     * Creates a digital signature for data using RSA private key.
+     * Uses SHA256withRSA algorithm for signing.
+     * @param data The byte array to be signed
+     * @param privateKey RSA private key used for signing
+     * @return Byte array containing the digital signature
+     * @throws RuntimeException if signing operation fails
      */
-    public static byte[] sign(byte[] data, PrivateKey key) {
+    public static byte[] sign(byte[] data, PrivateKey privateKey) {
         try {
-            Signature signer = Signature.getInstance("SHA256withRSA");
-            signer.initSign(key);
-            signer.update(data);
-            return signer.sign();
+            Signature signature = Signature.getInstance("SHA256withRSA");
+            signature.initSign(privateKey);
+            signature.update(data);
+            return signature.sign();
         } catch (Exception e) {
-            Logger.error("Signing data failed: " + e.getMessage());
+            Logger.error("Signing failed: " + e.getMessage());
             throw new RuntimeException(e);
         }
     }
 
     /**
-     * Verifies a signature using RSA public key.
+     * Verifies a digital signature using RSA public key.
+     * Uses SHA256withRSA algorithm for verification.
      * @param data Original data that was signed
-     * @param signature Signature to verify
-     * @param key Public key for verification
-     * @return true if signature is valid, false otherwise
-     * @throws RuntimeException if verification fails
+     * @param signatureBytes Digital signature to verify
+     * @param publicKey RSA public key corresponding to the private key used for signing
+     * @return true if signature is valid, false if invalid or verification fails
      */
-    public static boolean verify(byte[] data, byte[] signature, PublicKey key) {
+    public static boolean verify(byte[] data, byte[] signatureBytes, PublicKey publicKey) {
         try {
-            Signature verifier = Signature.getInstance("SHA256withRSA");
-            verifier.initVerify(key);
-            verifier.update(data);
-            return verifier.verify(signature);
+            Signature signature = Signature.getInstance("SHA256withRSA");
+            signature.initVerify(publicKey);
+            signature.update(data);
+            return signature.verify(signatureBytes);
         } catch (Exception e) {
-            Logger.error("Verification of signature failed: " + e.getMessage());
+            Logger.error("Verification failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Decodes a Base64-encoded RSA public key string into a PublicKey object.
+     * Expects X.509 encoded key format.
+     * @param base64 Base64 encoded string representation of public key
+     * @return Decoded RSA PublicKey object
+     * @throws RuntimeException if decoding or key generation fails
+     */
+    public static PublicKey decodePublicKey(String base64) {
+        try {
+            byte[] bytes = Base64.getDecoder().decode(base64);
+            java.security.spec.X509EncodedKeySpec spec = new java.security.spec.X509EncodedKeySpec(bytes);
+            KeyFactory kf = KeyFactory.getInstance("RSA");
+            return kf.generatePublic(spec);
+        } catch (Exception e) {
+            Logger.error("Public key decoding failed: " + e.getMessage());
             throw new RuntimeException(e);
         }
     }
